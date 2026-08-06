@@ -1,0 +1,378 @@
+<ion-content [fullscreen]="true" style="--background: #212121;">
+  <div #mapContainer class="map-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;"></div>
+
+<div *ngIf="!isNavigating" style="position: absolute; top: 12px; left: 12px; right: 12px; z-index: 200;">
+  <div style="display: flex; align-items: center; gap: 8px;">
+    <div (click)="openMapSearch()" style="flex: 1; display: flex; align-items: center; background: rgba(18,18,24,0.95); border: 1px solid rgba(255,255,255,0.12); border-radius: 28px; padding: 0 16px; gap: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); backdrop-filter: blur(10px); cursor: pointer; height: 48px;">
+      <ion-icon name="search" style="color: rgba(255,255,255,0.5); font-size: 18px; flex-shrink: 0;"></ion-icon>
+      <span style="color: rgba(255,255,255,0.4); font-size: 15px; flex: 1;">Buscar ciudad, lugar...</span>
+      <ion-icon name="locate" style="color: rgba(255,255,255,0.3); font-size: 16px;"></ion-icon>
+    </div>
+    <button (click)="openUserMenu()" style="width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer; background: rgba(18,18,24,0.95); border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(0,0,0,0.5); backdrop-filter: blur(10px); flex-shrink: 0;">
+      <ion-icon name="person-circle" style="font-size: 24px; color: rgba(255,255,255,0.7);"></ion-icon>
+    </button>
+  </div>
+</div>
+
+<div *ngIf="!isNavigating" style="position: absolute; top: 68px; left: 12px; z-index: 200;">
+  <div style="display: flex; background: rgba(18,18,24,0.95); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.4); backdrop-filter: blur(10px);">
+    <button (click)="setFilterMode('all')" [style.background]="filterMode === 'all' ? '#fff' : 'transparent'" [style.color]="filterMode === 'all' ? '#000' : 'rgba(255,255,255,0.6)'" style="border: none; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+      Todos
+    </button>
+    <button (click)="setFilterMode('mine')" [style.background]="filterMode === 'mine' ? '#FF6B00' : 'transparent'" [style.color]="filterMode === 'mine' ? '#fff' : 'rgba(255,255,255,0.6)'" style="border: none; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+      Mis pines
+    </button>
+  </div>
+</div>
+
+<div *ngIf="!isNavigating" style="position: absolute; right: 16px; bottom: 140px; display: flex; flex-direction: column; gap: 10px; z-index: 100;">
+  <button (click)="toggleMapType()" style="width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer; background: rgba(18,18,24,0.92); border: 1px solid rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,0.5); backdrop-filter: blur(10px);">
+    <ion-icon [name]="isSatellite ? 'map' : 'layers'" style="font-size: 20px; color: #fff;"></ion-icon>
+  </button>
+  <button (click)="resetCamera()" style="width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer; background: rgba(18,18,24,0.92); border: 1px solid rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,0.5); backdrop-filter: blur(10px);">
+    <ion-icon name="navigate" style="font-size: 20px; color: #fff;"></ion-icon>
+  </button>
+</div>
+
+<div *ngIf="isNavigating" style="position: fixed; bottom: 0; left: 0; right: 0; z-index: 600; background: rgba(10,10,15,0.97); border-top: 2px solid #FF6B00; backdrop-filter: blur(20px); padding: 16px 16px calc(16px + env(safe-area-inset-bottom));">
+  <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 14px;">
+    <div style="text-align: center;">
+      <div style="color: #FF6B00; font-size: 2.5rem; font-weight: 800; line-height: 1; letter-spacing: -1px;">{{ distanceToNext || '...' }}</div>
+      <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem; margin-top: 2px;">al siguiente pin</div>
+    </div>
+  </div>
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px; background: rgba(255,255,255,0.05); border-radius: 14px; padding: 10px 12px;">
+    <img [src]="routePins[currentNavIndex]?.image" style="width: 50px; height: 50px; border-radius: 10px; object-fit: cover; flex-shrink: 0; border: 2px solid #FF6B00;" />
+    <div style="flex: 1; min-width: 0;">
+      <div style="background: #FF6B00; border-radius: 20px; padding: 2px 10px; display: inline-flex; margin-bottom: 3px;">
+        <span style="color: #fff; font-size: 11px; font-weight: 700;">PIN {{ currentNavIndex + 1 }} / {{ routePins.length }}</span>
+      </div>
+      <span style="color: #fff; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">
+        {{ routePins[currentNavIndex]?.address || 'Destino ' + (currentNavIndex + 1) }}
+      </span>
+    </div>
+  </div>
+  <div style="display: flex; gap: 8px;">
+    <button (click)="goToPrevPin()" [disabled]="currentNavIndex === 0"
+            style="flex: 1; padding: 12px; border-radius: 12px; border: none; cursor: pointer; background: rgba(255,255,255,0.08); color: #fff; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;"
+            [style.opacity]="currentNavIndex === 0 ? '0.3' : '1'">
+      <ion-icon name="play-skip-back" style="font-size: 16px;"></ion-icon> Anterior
+    </button>
+    <button (click)="clearRoute()" style="width: 48px; padding: 12px; border-radius: 12px; border: none; cursor: pointer; background: rgba(255,60,60,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+      <ion-icon name="stop-circle" style="font-size: 20px; color: #ff4d4d;"></ion-icon>
+    </button>
+    <button (click)="goToNextPin()" [disabled]="currentNavIndex === routePins.length - 1"
+            style="flex: 1; padding: 12px; border-radius: 12px; border: none; cursor: pointer; background: #FF6B00; color: #fff; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;"
+            [style.opacity]="currentNavIndex === routePins.length - 1 ? '0.4' : '1'">
+      Siguiente <ion-icon name="play-skip-forward" style="font-size: 16px;"></ion-icon>
+    </button>
+  </div>
+</div>
+
+<div *ngIf="!isNavigating" class="bottom-bar" style="position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 500; display: flex; justify-content: space-around; align-items: center; padding: 10px 16px; background: rgba(30,30,30,0.85); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; width: 90%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);">
+  <button class="bar-btn" (click)="openFavoritesModal()" style="position: relative;">
+    <ion-icon name="heart" [style.color]="favoritePhotos.length > 0 ? '#ff4d4d' : 'rgba(255,255,255,0.6)'" style="font-size: 22px;"></ion-icon>
+    <span>Favoritos</span>
+    <div *ngIf="favoritePhotos.length > 0" style="position: absolute; top: 2px; right: 8px; background: #ff4d4d; color: #fff; font-size: 10px; font-weight: 700; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">{{ favoritePhotos.length }}</div>
+  </button>
+  <button (click)="takePhoto()" style="display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: none; cursor: pointer; padding: 0;">
+    <div style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #fff 0%, #e0e0e0 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(255,255,255,0.25); margin-bottom: 2px;">
+      <ion-icon name="add" style="font-size: 28px; color: #000;"></ion-icon>
+    </div>
+    <span style="color: rgba(255,255,255,0.6); font-size: 11px;">Añadir</span>
+  </button>
+  <button class="bar-btn" (click)="isRoutesSheetOpen = true" style="position: relative;">
+    <ion-icon name="git-merge" style="font-size: 22px;" [style.color]="isRouteModeActive ? '#FF6B00' : 'rgba(255,255,255,0.6)'"></ion-icon>
+    <span [style.color]="isRouteModeActive ? '#FF6B00' : 'rgba(255,255,255,0.6)'">Rutas</span>
+    <div *ngIf="isRouteModeActive" style="position: absolute; top: 2px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: #FF6B00;"></div>
+    <div *ngIf="!isRouteModeActive && savedRoutes.length > 0" style="position: absolute; top: 2px; right: 8px; background: #FF6B00; color: #fff; font-size: 10px; font-weight: 700; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">{{ savedRoutes.length }}</div>
+  </button>
+</div>
+
+<div *ngIf="isRoutePanelOpen" style="position: fixed; bottom: 90px; left: 12px; right: 12px; z-index: 500; background: rgba(15,15,20,0.97); border: 1px solid rgba(255,107,0,0.3); border-radius: 20px; box-shadow: 0 -4px 30px rgba(0,0,0,0.6); backdrop-filter: blur(20px); overflow: hidden; max-height: 50vh;">
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <ion-icon name="git-merge" style="font-size: 18px; color: #FF6B00;"></ion-icon>
+      <span style="color: #fff; font-size: 0.95rem; font-weight: 700;">Ruta — {{ routePins.length }} pin{{ routePins.length !== 1 ? 's' : '' }}</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <button *ngIf="routePins.length >= 2" (click)="openSaveRouteModal()" style="background: rgba(255,107,0,0.15); border: 1px solid rgba(255,107,0,0.4); border-radius: 20px; padding: 5px 12px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+        <ion-icon name="bookmarks" style="font-size: 14px; color: #FF6B00;"></ion-icon>
+        <span style="color: #FF6B00; font-size: 12px; font-weight: 600;">Guardar</span>
+      </button>
+      <ion-icon name="close-circle" (click)="clearRoute()" style="font-size: 24px; color: rgba(255,255,255,0.4); cursor: pointer;"></ion-icon>
+    </div>
+  </div>
+  <div style="overflow-y: auto; max-height: 26vh; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px;">
+    <div *ngIf="routePins.length === 0" style="text-align: center; padding: 20px 0; color: rgba(255,255,255,0.3); font-size: 0.85rem;">Toca los pins del mapa para añadirlos</div>
+    <div *ngFor="let pin of routePins; let i = index" style="display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.04); border-radius: 12px; padding: 8px 10px;">
+      <div style="width: 26px; height: 26px; border-radius: 50%; background: #FF6B00; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <span style="color: #fff; font-size: 12px; font-weight: 700;">{{ i + 1 }}</span>
+      </div>
+      <img [src]="pin.image" style="width: 40px; height: 40px; border-radius: 8px; object-fit: cover; flex-shrink: 0;" />
+      <span style="color: rgba(255,255,255,0.8); font-size: 12px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ pin.address || pin.lat + ', ' + pin.lng }}</span>
+      <ion-icon name="close-circle" (click)="removeFromRoute(i)" style="font-size: 20px; color: rgba(255,255,255,0.3); cursor: pointer; flex-shrink: 0;"></ion-icon>
+    </div>
+  </div>
+  <div style="padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.06);">
+    <button (click)="drawRoute()" [disabled]="routePins.length < 2"
+            style="width: 100%; padding: 13px; border-radius: 14px; border: none; cursor: pointer; font-size: 15px; font-weight: 700; letter-spacing: 0.3px; transition: opacity 0.2s;"
+            [style.background]="routePins.length >= 2 ? 'linear-gradient(135deg, #FF6B00, #FF8C42)' : 'rgba(255,255,255,0.08)'"
+            [style.color]="routePins.length >= 2 ? '#fff' : 'rgba(255,255,255,0.3)'">
+      {{ routePins.length < 2 ? 'Añade 2 pins mínimo' : '🧭 Iniciar navegación' }}
+    </button>
+  </div>
+</div>
+
+<ion-modal [isOpen]="isRoutesSheetOpen" (didDismiss)="isRoutesSheetOpen = false" [breakpoints]="[0, 0.45]" [initialBreakpoint]="0.45">
+  <ng-template>
+    <ion-content style="--background: #111; --padding-start: 20px; --padding-end: 20px; --padding-top: 20px;">
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+        <ion-icon name="git-merge" style="font-size: 22px; color: #FF6B00;"></ion-icon>
+        <h2 style="color: #fff; margin: 0; font-size: 1.1rem; font-weight: 700;">Rutas</h2>
+      </div>
+      <button (click)="isRoutesSheetOpen = false; toggleRouteMode()" style="width: 100%; padding: 16px; border-radius: 16px; border: none; cursor: pointer; background: rgba(255,107,0,0.12); border: 1px solid rgba(255,107,0,0.3); display: flex; align-items: center; gap: 14px; margin-bottom: 12px;">
+        <div style="width: 40px; height: 40px; border-radius: 12px; background: #FF6B00; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <ion-icon [name]="isRouteModeActive ? 'close' : 'add'" style="font-size: 22px; color: #fff;"></ion-icon>
+        </div>
+        <div style="text-align: left;">
+          <div style="color: #FF6B00; font-size: 15px; font-weight: 700;">{{ isRouteModeActive ? 'Cancelar selección' : 'Nueva ruta' }}</div>
+          <div style="color: rgba(255,255,255,0.4); font-size: 12px;">{{ isRouteModeActive ? 'Salir del modo selección' : 'Selecciona pins del mapa' }}</div>
+        </div>
+      </button>
+      <button (click)="isRoutesSheetOpen = false; isSavedRoutesModalOpen = true" style="width: 100%; padding: 16px; border-radius: 16px; border: none; cursor: pointer; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 14px;">
+        <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <ion-icon name="bookmarks" style="font-size: 20px; color: rgba(255,255,255,0.7);"></ion-icon>
+        </div>
+        <div style="text-align: left; flex: 1;">
+          <div style="color: #fff; font-size: 15px; font-weight: 700;">Rutas guardadas</div>
+          <div style="color: rgba(255,255,255,0.4); font-size: 12px;">{{ savedRoutes.length }} ruta{{ savedRoutes.length !== 1 ? 's' : '' }} guardada{{ savedRoutes.length !== 1 ? 's' : '' }}</div>
+        </div>
+        <div *ngIf="savedRoutes.length > 0" style="background: #FF6B00; color: #fff; font-size: 12px; font-weight: 700; min-width: 24px; height: 24px; border-radius: 12px; display: flex; align-items: center; justify-content: center; padding: 0 6px;">{{ savedRoutes.length }}</div>
+      </button>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<ion-modal [isOpen]="isSaveRouteModalOpen" (didDismiss)="isSaveRouteModalOpen = false" [breakpoints]="[0, 0.4]" [initialBreakpoint]="0.4">
+  <ng-template>
+    <ion-content style="--background: #111; --padding-start: 20px; --padding-end: 20px; --padding-top: 30px;">
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px;">
+        <ion-icon name="bookmarks" style="font-size: 24px; color: #FF6B00;"></ion-icon>
+        <h2 style="color: #fff; margin: 0; font-size: 1.2rem; font-weight: 700;">Guardar ruta</h2>
+      </div>
+      <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 0 16px; margin-bottom: 20px;">
+        <input [(ngModel)]="pendingRouteName" placeholder="Nombre de la ruta..."
+               style="width: 100%; background: transparent; border: none; outline: none; color: #fff; font-size: 16px; padding: 16px 0; font-family: sans-serif;" />
+      </div>
+      <button (click)="confirmSaveRoute()" style="width: 100%; padding: 14px; border-radius: 14px; border: none; cursor: pointer; background: linear-gradient(135deg, #FF6B00, #FF8C42); color: #fff; font-size: 16px; font-weight: 700;">Guardar</button>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<ion-modal [isOpen]="isSavedRoutesModalOpen" (didDismiss)="isSavedRoutesModalOpen = false">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar color="dark">
+        <ion-title><ion-icon name="bookmarks" style="color: #FF6B00; margin-right: 6px;"></ion-icon>Rutas guardadas</ion-title>
+        <ion-buttons slot="end"><ion-button (click)="isSavedRoutesModalOpen = false"><ion-icon name="close" slot="icon-only"></ion-icon></ion-button></ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content style="--background: #111;">
+      <div *ngIf="savedRoutes.length === 0" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; gap: 16px;">
+        <ion-icon name="bookmarks-outline" style="font-size: 64px; color: rgba(255,255,255,0.1);"></ion-icon>
+        <p style="color: rgba(255,255,255,0.3); font-size: 1rem; text-align: center; margin: 0;">No tienes rutas guardadas.<br/>Crea una ruta y guárdala.</p>
+      </div>
+      <div *ngIf="savedRoutes.length > 0" style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+        <div *ngFor="let route of savedRoutes" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,107,0,0.15); border-radius: 18px; overflow: hidden;">
+          <div style="display: flex; height: 80px; overflow: hidden;">
+            <img *ngFor="let pin of route.pins.slice(0, 4)" [src]="pin.image" style="flex: 1; object-fit: cover; min-width: 0;" />
+          </div>
+          <div style="padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+            <div style="flex: 1; min-width: 0;">
+              <p style="color: #fff; font-weight: 700; font-size: 1rem; margin: 0 0 4px;">{{ route.name }}</p>
+              <p style="color: rgba(255,255,255,0.4); font-size: 0.8rem; margin: 0;">{{ route.pins.length }} paradas · {{ route.createdAt | date:'dd/MM/yyyy' }}</p>
+            </div>
+            <div style="display: flex; gap: 8px; flex-shrink: 0;">
+              <button (click)="loadSavedRoute(route)" style="padding: 8px 16px; border-radius: 20px; border: none; cursor: pointer; background: #FF6B00; color: #fff; font-size: 13px; font-weight: 700;">Iniciar</button>
+              <button (click)="openDeleteRouteConfirm(route)" style="width: 36px; height: 36px; border-radius: 50%; border: none; cursor: pointer; background: rgba(255,60,60,0.15); display: flex; align-items: center; justify-content: center;">
+                <ion-icon name="trash" style="font-size: 16px; color: #ff4d4d;"></ion-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </ion-content>
+    <ion-alert [isOpen]="routeToDelete !== null" header="Eliminar ruta" message="¿Seguro que quieres eliminar esta ruta?" [buttons]="deleteRouteAlertButtons" (didDismiss)="routeToDelete = null"></ion-alert>
+  </ng-template>
+</ion-modal>
+
+<div *ngIf="isMapSearchOpen" style="position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.7); display: flex; flex-direction: column; align-items: center; padding-top: 60px; gap: 12px;" (click)="isMapSearchOpen = false">
+  <div (click)="$event.stopPropagation()" style="width: calc(100% - 32px); max-width: 480px; background: rgba(20,20,30,0.98); border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.8);">
+    <div style="display: flex; align-items: center; padding: 0 16px; gap: 10px;">
+      <ion-icon name="search" style="color: rgba(255,255,255,0.4); font-size: 18px;"></ion-icon>
+      <input id="mapSearchInput" type="text" placeholder="Buscar ciudad, calle, lugar..."
+             style="flex: 1; background: transparent; border: none; outline: none; color: white; font-size: 16px; padding: 18px 0; font-family: sans-serif;" />
+      <ion-icon name="close" (click)="isMapSearchOpen = false" style="color: rgba(255,255,255,0.4); font-size: 20px; cursor: pointer;"></ion-icon>
+    </div>
+  </div>
+  <p style="color: rgba(255,255,255,0.3); font-size: 13px; margin: 0;">Toca fuera para cerrar</p>
+</div>
+
+<ion-modal [isOpen]="isFavoritesModalOpen" (didDismiss)="isFavoritesModalOpen = false">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar color="dark">
+        <ion-title><ion-icon name="heart" style="color: #ff4d4d; margin-right: 6px;"></ion-icon>Favoritos</ion-title>
+        <ion-buttons slot="end"><ion-button (click)="isFavoritesModalOpen = false"><ion-icon name="close" slot="icon-only"></ion-icon></ion-button></ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content style="--background: #111;">
+
+      <div *ngIf="favoritePhotos.length === 0" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; gap: 16px;">
+        <ion-icon name="heart-outline" style="font-size: 64px; color: rgba(255,255,255,0.1);"></ion-icon>
+        <p style="color: rgba(255,255,255,0.3); font-size: 1rem; text-align: center; margin: 0;">Aún no tienes favoritos.<br/>Abre una foto y toca el corazón.</p>
+      </div>
+
+      <div *ngIf="favoritePhotos.length > 0" style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+        <div *ngFor="let fav of favoritePhotos" style="position: relative; width: 100%; aspect-ratio: 16/9; border-radius: 18px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.07);">
+
+          <img (click)="goToPhoto(fav)" [src]="fav.image"
+               style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; cursor: pointer;" />
+
+          <div style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 55%); pointer-events: none;"></div>
+          <div (click)="goToPhoto(fav)" style="position: absolute; bottom: 14px; left: 14px; right: 56px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <ion-icon name="location" style="font-size: 13px; color: #ff6b6b; flex-shrink: 0;"></ion-icon>
+            <span style="color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            {{ fav.address || 'Ver en mapa' }}
+            </span>
+          </div>
+
+          <button (click)="toggleFavorite(fav)"
+                  style="position: absolute; top: 10px; right: 10px;
+                  width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer;
+                  background: rgba(0,0,0,0.6);
+                  display: flex; align-items: center; justify-content: center;
+                  box-shadow: 0 2px 10px rgba(0,0,0,0.6);">
+            <ion-icon
+              [name]="isFavorite(fav) ? 'heart' : 'heart-outline'"
+              [style.color]="isFavorite(fav) ? '#ff0000' : '#ffffff'"
+              style="font-size: 20px; pointer-events: none;">
+            </ion-icon>
+          </button>
+        </div>
+      </div>
+
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<ion-modal [isOpen]="isConfirmLocationModalOpen" (didDismiss)="closeConfirmModal()" [backdropDismiss]="false">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar color="dark">
+        <ion-buttons slot="start"><ion-button (click)="closeConfirmModal()" color="medium">Cancelar</ion-button></ion-buttons>
+        <ion-title style="font-size: 1.1rem;">Ajustar Ubicación</ion-title>
+        <ion-buttons slot="end"><ion-button (click)="uploadConfirmedPhoto()" color="primary" style="font-weight: bold;">Subir</ion-button></ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content style="--background: #212121; --padding-start: 0; --padding-end: 0; --padding-top: 0; --padding-bottom: 0;" [scrollY]="false">
+      <div style="position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 100; width: calc(100% - 32px); max-width: 420px;">
+        <div style="display: flex; align-items: center; background: rgba(25,25,35,0.95); border: 1px solid rgba(255,255,255,0.15); border-radius: 28px; padding: 0 16px; gap: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); backdrop-filter: blur(10px);">
+          <ion-icon name="search" style="color: rgba(255,255,255,0.5); font-size: 18px; flex-shrink: 0;"></ion-icon>
+          <input id="placesSearchInput" type="text" placeholder="Buscar ciudad, lugar..." style="flex: 1; background: transparent; border: none; outline: none; color: white; font-size: 15px; padding: 13px 0; font-family: sans-serif;" />
+        </div>
+      </div>
+      <div style="position: absolute; top: 80px; left: 50%; transform: translateX(-50%); z-index: 50; background: rgba(0,0,0,0.7); color: white; padding: 10px 20px; border-radius: 30px; font-size: 0.9rem; font-weight: 500; white-space: nowrap; pointer-events: none;">Arrastra el mapa para ajustar el pin</div>
+      <div id="confirmMapContainer" style="width: 100%; height: 100%; outline: none; border: none; background: #212121;"></div>
+      <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -100%); z-index: 50; pointer-events: none; filter: drop-shadow(0px 8px 6px rgba(0,0,0,0.5));">
+        <ion-icon name="location" color="danger" style="font-size: 55px;"></ion-icon>
+        <div style="width: 12px; height: 12px; background: rgba(0,0,0,0.2); border-radius: 50%; position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%) rotateX(60deg);"></div>
+      </div>
+      <div *ngIf="pendingPhotoSrc" style="position: absolute; bottom: 30px; right: 20px; width: 85px; height: 100px; border-radius: 12px; border: 3px solid #fff; overflow: hidden; z-index: 50; box-shadow: 0 8px 20px rgba(0,0,0,0.5); background: #1a1a1a;">
+        <img [src]="pendingPhotoSrc" style="width: 100%; height: 100%; object-fit: cover;" />
+      </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<ion-modal [isOpen]="isModalOpen" (didDismiss)="closeModal()" [backdropDismiss]="false">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar style="--background: #111; --color: #fff;">
+        <ion-title style="color: #fff;">Detalle</ion-title>
+        <ion-buttons slot="end">
+          <ion-button (click)="toggleFavorite(selectedPhoto)">
+            <ion-icon [name]="isFavorite(selectedPhoto) ? 'heart' : 'heart-outline'" [style.color]="isFavorite(selectedPhoto) ? '#ff4d4d' : 'rgba(255,255,255,0.6)'" slot="icon-only"></ion-icon>
+          </ion-button>
+          <ion-button (click)="confirmDelete()" color="danger">
+            <ion-icon name="trash" slot="icon-only"></ion-icon>
+          </ion-button>
+          <ion-button (click)="closeModal()">
+            <ion-icon name="close" slot="icon-only"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content style="--background: #111;">
+      <div style="padding: 20px; display: flex; flex-direction: column; gap: 20px;">
+        <div style="width: 100%; height: 30vh; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.5); background: #212121;">
+          <div id="miniMapContainer" style="width: 100%; height: 100%; background: #212121; outline: none; border: none;"></div>
+        </div>
+        <div (click)="openFullScreenPhoto()" style="width: 100%; height: 55vh; background: #1a1a1a; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); padding: 10px; cursor: pointer;">
+          <img *ngIf="selectedPhoto" [src]="selectedPhoto.image" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;" />
+        </div>
+        <div style="color: #fff; padding-top: 10px;">
+          <h2 style="color: #fff; margin-top: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 5px;">
+            <ion-icon name="location-outline"></ion-icon> Ubicación
+          </h2>
+          <p style="color: #fff; font-size: 1.4rem; font-weight: bold; line-height: 1.3; margin-top: 5px;">{{ selectedPhotoAddress }}</p>
+        </div>
+        <div *ngIf="nearbyPhotos.length > 0" style="margin-top: 8px;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+            <div style="width: 3px; height: 20px; background: linear-gradient(180deg, #ff4d4d, #ff8c42); border-radius: 2px;"></div>
+            <span style="color: #fff; font-size: 1rem; font-weight: 700;">{{ nearbyPhotos.length }} foto{{ nearbyPhotos.length > 1 ? 's' : '' }} cerca</span>
+            <span style="color: rgba(255,255,255,0.3); font-size: 0.8rem;">· 100m</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div *ngFor="let nearby of nearbyPhotos" (click)="openModal(nearby)" (touchstart)="onNearbyTouchStart($event)" (touchend)="onNearbyTouchEnd($event)"
+                 style="position: relative; width: 100%; aspect-ratio: 4/3; border-radius: 20px; overflow: hidden; cursor: pointer; box-shadow: 0 12px 32px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.07); background: #1a1a1a; transition: transform 0.2s ease;">
+              <img [src]="nearby.image" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
+              <div style="position: absolute; top: 0; left: 0; right: 0; height: 80px; background: linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, transparent 100%); pointer-events: none;"></div>
+              <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 80px; background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%); pointer-events: none;"></div>
+              <div style="position: absolute; top: 14px; left: 14px; right: 14px; display: flex; align-items: center; gap: 6px;">
+                <ion-icon name="location" style="font-size: 14px; color: #ff6b6b; flex-shrink: 0;"></ion-icon>
+                <span style="color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 4px rgba(0,0,0,0.8);">{{ nearby.address || '...' }}</span>
+              </div>
+              <div style="position: absolute; bottom: 14px; right: 14px; display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.5); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.15); border-radius: 30px; padding: 5px 12px;">
+                <ion-icon name="navigate" style="font-size: 12px; color: #ff6b6b;"></ion-icon>
+                <span style="color: #fff; font-size: 12px; font-weight: 700; letter-spacing: 0.5px;">{{ nearby.distanceM }}m</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div *ngIf="nearbyPhotos.length === 0" style="margin-top: 16px; padding: 24px 20px; border-radius: 16px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.08); text-align: center;">
+          <ion-icon name="location-outline" style="font-size: 32px; color: rgba(255,255,255,0.15); display: block; margin-bottom: 8px;"></ion-icon>
+          <span style="color: rgba(255,255,255,0.25); font-size: 0.85rem;">Sin fotos en un radio de 100m</span>
+        </div>
+        <div style="height: 40px;"></div>
+      </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<ion-modal [isOpen]="isFullScreenPhotoOpen" (didDismiss)="closeFullScreenPhoto()">
+  <ng-template>
+    <ion-content style="--background: #000;">
+      <div style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%;">
+        <img *ngIf="selectedPhoto" [src]="selectedPhoto.image" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+      </div>
+      <ion-fab vertical="top" horizontal="end" slot="fixed">
+        <ion-fab-button size="small" color="dark" (click)="closeFullScreenPhoto()" style="--box-shadow: none; --background: rgba(0,0,0,0.5);">
+          <ion-icon name="close"></ion-icon>
+        </ion-fab-button>
+      </ion-fab>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+</ion-content>
