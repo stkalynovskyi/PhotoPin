@@ -4,6 +4,12 @@
 
 PhotoPin permite capturar, explorar y compartir ubicaciones turísticas a través de fotografías geolocalizadas. La plataforma extrae automáticamente metadatos espaciales (EXIF), agrupa interactivamente puntos de interés en el mapa y ofrece una gestión segura de usuarios y contenido multimedia en la nube.
 
+<p align="center">
+  <img src="docs/inicio_sesion.png" alt="Inicio de Sesión" width="250"/>
+  &nbsp;&nbsp;&nbsp;
+  <img src="docs/home.png" alt="Pantalla Principal" width="250"/>
+</p>
+
 ---
 
 ## Características Principales
@@ -40,17 +46,20 @@ PhotoPin permite capturar, explorar y compartir ubicaciones turísticas a travé
 ```text
 photopin/
 ├── backend/
-│   ├── src/
-│   │   ├── controllers/      # Controladores de peticiones HTTP
-│   │   ├── models/           # Esquemas de Mongoose (User, Photo, Pin)
-│   │   ├── routes/           # Endpoints de la API REST
-│   │   ├── middlewares/      # Verificación de JWT y subida de archivos
-│   │   └── utils/            # Extracción de metadatos EXIF y helpers
-│   └── server.js
+│   ├── config/           # Configuración de base de datos y entorno
+│   ├── controllers/      # Controladores de peticiones HTTP
+│   ├── middleware/       # Verificación de JWT y subida de archivos
+│   ├── models/           # Esquemas de Mongoose (User, Photo, Pin)
+│   ├── routes/           # Endpoints de la API REST
+│   └── server.js         # Archivo principal del servidor
 │
 └── frontend/
-    ├── src/
-    │   ├── app/
-    │   │   ├── components/   # Componentes UI reutilizables
-    │   │   ├── pages/        # Vistas (Mapa, Perfil, Galería, Auth)
-    │   └── services/         # Servicios HTTP y gestión de estado reactivo
+    └── src/
+        └── app/
+            ├── guards/       # Guardianes de rutas para autenticación
+            ├── home/         # Vista principal (Mapa y explorador)
+            ├── interceptors/ # Interceptores HTTP (ej. añadir token JWT)
+            ├── login/        # Vista de autenticación
+            ├── profile/      # Vista de perfil de usuario
+            └── services/     # Servicios HTTP y gestión de estado
+`
